@@ -4,7 +4,8 @@ Progetto di gestione di un parco automezzi tramite una semplice CLI in Python.
 
 ## Requisiti
 
-- Python 3.11+ (solo libreria standard).
+- Python 3.11+
+- Dipendenza: Flask (installata con `pip install -e .`).
 
 ## Installazione locale
 
@@ -19,6 +20,16 @@ pip install -e .
 ```bash
 python -m gestionale01 list
 ```
+
+## UI Web (CRUD via browser)
+
+La UI web usa Flask e permette di creare/leggere/aggiornare/eliminare veicoli da browser.
+
+```bash
+python -m gestionale01.web
+```
+
+Poi apri il browser su `http://127.0.0.1:8000`.
 
 ## Comandi disponibili
 
