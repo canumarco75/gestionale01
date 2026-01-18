@@ -1,20 +1,15 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <header>
+  <div class="page-header">
     <div>
       <h1>{{ "Modifica veicolo" if vehicle else "Nuovo veicolo" }}</h1>
       <p class="muted">Compila i dati per salvare il veicolo.</p>
     </div>
     <div class="header-actions">
-      {% if auth_enabled %}
-        <form method="post" action="{{ url_for('logout') }}">
-          <button class="button secondary" type="submit">Logout</button>
-        </form>
-      {% endif %}
       <a class="button secondary" href="{{ url_for('index') }}">Torna alla lista</a>
     </div>
-  </header>
+  </div>
 
   <section class="card">
     {% if error %}

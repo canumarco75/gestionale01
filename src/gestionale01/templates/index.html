@@ -1,20 +1,15 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <header>
+  <div class="page-header">
     <div>
       <h1>Gestionale parco auto</h1>
       <p class="muted">Gestisci i veicoli con operazioni CRUD.</p>
     </div>
     <div class="header-actions">
-      {% if auth_enabled %}
-        <form method="post" action="{{ url_for('logout') }}">
-          <button class="button secondary" type="submit">Logout</button>
-        </form>
-      {% endif %}
       <a class="button" href="{{ url_for('add_form') }}">Nuovo veicolo</a>
     </div>
-  </header>
+  </div>
 
   <section class="card">
     {% if vehicles %}

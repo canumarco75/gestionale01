@@ -1,12 +1,13 @@
 {% extends "base.html" %}
+{% set shell_hidden = true %}
 
 {% block content %}
-  <header>
+  <div class="page-header">
     <div>
       <h1>Accesso</h1>
       <p class="muted">Inserisci le credenziali per gestire il parco auto.</p>
     </div>
-  </header>
+  </div>
 
   <section class="card">
     {% if error %}
