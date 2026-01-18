@@ -211,6 +211,11 @@ def main() -> None:
     )
     parser.add_argument("--mysql-url", help="URL di connessione MySQL (es. mysql://user:pass@host:3306/db)")
     parser.add_argument(
+        "--mysql-db",
+        default="dbgest01",
+        help="Nome database MySQL se non incluso nell'URL (default: dbgest01)",
+    )
+    parser.add_argument(
         "--auth-mode",
         choices=["none", "cli", "mysql"],
         default="none",
@@ -237,10 +242,10 @@ def main() -> None:
     if args.create_user and not args.create_password:
         parser.error("Per creare un utente devi specificare --create-password.")
 
-    storage = get_storage(args.db_type, Path(args.db), args.mysql_url)
+    storage = get_storage(args.db_type, Path(args.db), args.mysql_url, args.mysql_db)
     user_storage: UserStorageProtocol | None = None
     if args.auth_mode == "mysql":
-        user_storage = MySQLUserStorage(args.mysql_url)
+        user_storage = MySQLUserStorage(args.mysql_url, args.mysql_db)
         if args.create_user:
             user_storage.create_user(args.create_user, args.create_password)
             print(f"Utente '{args.create_user}' creato con successo.")

@@ -67,25 +67,32 @@ class StorageProtocol(Protocol):
         ...
 
 
-def _connect_mysql(url: str):
+def _connect_mysql(url: str, database: str | None = None):
     import mysql.connector
     from urllib.parse import urlparse
 
     parsed = urlparse(url)
     if parsed.scheme != "mysql":
         raise ValueError("URL MySQL non valido. Usa il formato mysql://utente:password@host:porta/database")
+    db_name = (parsed.path or "").lstrip("/")
+    if not db_name:
+        if database:
+            db_name = database
+        else:
+            raise ValueError("Specifica il database nell'URL MySQL o usa --mysql-db.")
     return mysql.connector.connect(
         user=parsed.username,
         password=parsed.password,
         host=parsed.hostname or "127.0.0.1",
         port=parsed.port or 3306,
-        database=(parsed.path or "").lstrip("/"),
+        database=db_name,
     )
 
 
 class MySQLVehicleStorage:
-    def __init__(self, url: str) -> None:
+    def __init__(self, url: str, database: str | None = None) -> None:
         self.url = url
+        self.database = database
 
     def load(self) -> list[Vehicle]:
         with self._connect() as conn:
@@ -180,7 +187,7 @@ class MySQLVehicleStorage:
             conn.commit()
 
     def _connect(self):
-        return _connect_mysql(self.url)
+        return _connect_mysql(self.url, self.database)
 
     def _ensure_table(self, conn) -> None:
         cursor = conn.cursor()
@@ -201,14 +208,19 @@ class MySQLVehicleStorage:
         conn.commit()
 
 
-def get_storage(db_type: str, db_path: Path, mysql_url: str | None) -> StorageProtocol:
+def get_storage(
+    db_type: str,
+    db_path: Path,
+    mysql_url: str | None,
+    mysql_db: str | None = None,
+) -> StorageProtocol:
     normalized = db_type.lower()
     if normalized == "json":
         return VehicleStorage(db_path)
     if normalized == "mysql":
         if not mysql_url:
             raise ValueError("Per db_type=mysql devi passare --mysql-url.")
-        return MySQLVehicleStorage(mysql_url)
+        return MySQLVehicleStorage(mysql_url, mysql_db)
     raise ValueError("Tipo database non supportato. Usa json o mysql.")
 
 
@@ -221,8 +233,9 @@ class UserStorageProtocol(Protocol):
 
 
 class MySQLUserStorage:
-    def __init__(self, url: str) -> None:
+    def __init__(self, url: str, database: str | None = None) -> None:
         self.url = url
+        self.database = database
 
     def verify_user(self, username: str, password: str) -> bool:
         with self._connect() as conn:
@@ -252,7 +265,7 @@ class MySQLUserStorage:
             conn.commit()
 
     def _connect(self):
-        return _connect_mysql(self.url)
+        return _connect_mysql(self.url, self.database)
 
     def _ensure_table(self, conn) -> None:
         cursor = conn.cursor()

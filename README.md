@@ -40,13 +40,13 @@ Puoi abilitare un login semplice per la UI scegliendo la modalità di autenticaz
 1. Crea un utente nella tabella `users`:
 
 ```bash
-python -m gestionale01.web --db-type mysql --mysql-url "mysql://user:pass@127.0.0.1:3306/gestionale" --auth-mode mysql --create-user admin --create-password "supersegreta"
+python -m gestionale01.web --db-type mysql --mysql-url "mysql://root:root@127.0.0.1:3308/dbgest01" --auth-mode mysql --create-user admin --create-password "supersegreta"
 ```
 
 2. Avvia la UI con login su MySQL:
 
 ```bash
-python -m gestionale01.web --db-type mysql --mysql-url "mysql://user:pass@127.0.0.1:3306/gestionale" --auth-mode mysql --secret-key "chiave-sicura"
+python -m gestionale01.web --db-type mysql --mysql-url "mysql://root:root@127.0.0.1:3308/dbgest01" --auth-mode mysql --secret-key "chiave-sicura"
 ```
 
 #### Login da CLI (solo per test locali)
@@ -69,16 +69,23 @@ Puoi usare MySQL al posto del file JSON passando `--db-type mysql` e l'URL di co
 mysql://utente:password@host:3306/nome_database
 ```
 
+Puoi anche omettere il nome del database nell'URL e passarlo con `--mysql-db`
+(di default `dbgest01`):
+
+```bash
+python -m gestionale01.web --db-type mysql --mysql-url "mysql://root:root@127.0.0.1:3308" --mysql-db dbgest01
+```
+
 ### Esempio CLI
 
 ```bash
-python -m gestionale01 --db-type mysql --mysql-url "mysql://user:pass@127.0.0.1:3306/gestionale" list
+python -m gestionale01 --db-type mysql --mysql-url "mysql://root:root@127.0.0.1:3308/dbgest01" list
 ```
 
 ### Esempio UI Web
 
 ```bash
-python -m gestionale01.web --db-type mysql --mysql-url "mysql://user:pass@127.0.0.1:3306/gestionale"
+python -m gestionale01.web --db-type mysql --mysql-url "mysql://root:root@127.0.0.1:3308/dbgest01"
 ```
 
 ## Comandi disponibili

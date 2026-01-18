@@ -19,6 +19,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="Tipo di database da usare (json o mysql)",
     )
     parser.add_argument("--mysql-url", help="URL di connessione MySQL (es. mysql://user:pass@host:3306/db)")
+    parser.add_argument(
+        "--mysql-db",
+        default="dbgest01",
+        help="Nome database MySQL se non incluso nell'URL (default: dbgest01)",
+    )
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -115,7 +120,7 @@ def handle_remove(args: argparse.Namespace, storage: StorageProtocol) -> None:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
-    storage = get_storage(args.db_type, args.db, args.mysql_url)
+    storage = get_storage(args.db_type, args.db, args.mysql_url, args.mysql_db)
 
     if args.command == "add":
         handle_add(args, storage)
