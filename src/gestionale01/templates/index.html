@@ -6,7 +6,14 @@
       <h1>Gestionale parco auto</h1>
       <p class="muted">Gestisci i veicoli con operazioni CRUD.</p>
     </div>
-    <a class="button" href="{{ url_for('add_form') }}">Nuovo veicolo</a>
+    <div class="header-actions">
+      {% if auth_enabled %}
+        <form method="post" action="{{ url_for('logout') }}">
+          <button class="button secondary" type="submit">Logout</button>
+        </form>
+      {% endif %}
+      <a class="button" href="{{ url_for('add_form') }}">Nuovo veicolo</a>
+    </div>
   </header>
 
   <section class="card">

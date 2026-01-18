@@ -31,6 +31,18 @@ python -m gestionale01.web
 
 Poi apri il browser su `http://127.0.0.1:8000`.
 
+### Login utenti (opzionale)
+
+Puoi abilitare un login semplice per la UI passando username e password.
+
+```bash
+python -m gestionale01.web --ui-user admin --ui-password "supersegreta" --secret-key "chiave-sicura"
+```
+
+Note:
+- Se abiliti il login, è consigliato impostare `--secret-key` (o la variabile `GESTIONALE01_SECRET_KEY`) per le sessioni.
+- Senza `--ui-user/--ui-password` la UI resta accessibile senza autenticazione.
+
 ## Uso con database MySQL
 
 Puoi usare MySQL al posto del file JSON passando `--db-type mysql` e l'URL di connessione.
