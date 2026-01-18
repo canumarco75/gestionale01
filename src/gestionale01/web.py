@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import hmac
 import os
 import secrets
 from dataclasses import dataclass
@@ -12,18 +11,32 @@ from pathlib import Path
 from flask import Flask, redirect, render_template, request, session, url_for
 
 from .models import Vehicle
-from .storage import StorageProtocol, get_storage
+from .storage import MySQLUserStorage, StorageProtocol, UserStorageProtocol, get_storage
 
 
 @dataclass(frozen=True)
 class AuthConfig:
+    mode: str = "none"
     username: str | None = None
     password: str | None = None
     secret_key: str | None = None
+    user_storage: UserStorageProtocol | None = None
 
     @property
     def enabled(self) -> bool:
-        return bool(self.username and self.password)
+        return self.mode != "none"
+
+    def verify(self, username: str, password: str) -> bool:
+        if self.mode == "cli":
+            return bool(
+                self.username
+                and self.password
+                and secrets.compare_digest(username, self.username)
+                and secrets.compare_digest(password, self.password)
+            )
+        if self.mode == "mysql" and self.user_storage:
+            return self.user_storage.verify_user(username, password)
+        return False
 
 
 def create_app(storage: StorageProtocol, auth: AuthConfig) -> Flask:
@@ -63,7 +76,7 @@ def create_app(storage: StorageProtocol, auth: AuthConfig) -> Flask:
             return redirect(url_for("index"))
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
-        if hmac.compare_digest(username, auth.username or "") and hmac.compare_digest(password, auth.password or ""):
+        if auth.verify(username, password):
             session["logged_in"] = True
             next_url = request.form.get("next") or url_for("index")
             return redirect(next_url)
@@ -197,8 +210,16 @@ def main() -> None:
         help="Tipo di database da usare (json o mysql)",
     )
     parser.add_argument("--mysql-url", help="URL di connessione MySQL (es. mysql://user:pass@host:3306/db)")
-    parser.add_argument("--ui-user", help="Username per accedere alla UI web (opzionale)")
-    parser.add_argument("--ui-password", help="Password per accedere alla UI web (opzionale)")
+    parser.add_argument(
+        "--auth-mode",
+        choices=["none", "cli", "mysql"],
+        default="none",
+        help="Modalità autenticazione UI (none, cli, mysql)",
+    )
+    parser.add_argument("--ui-user", help="Username per accedere alla UI web (solo auth-mode=cli)")
+    parser.add_argument("--ui-password", help="Password per accedere alla UI web (solo auth-mode=cli)")
+    parser.add_argument("--create-user", help="Crea un utente nella tabella users (solo auth-mode=mysql)")
+    parser.add_argument("--create-password", help="Password per il nuovo utente (solo auth-mode=mysql)")
     parser.add_argument(
         "--secret-key",
         help="Chiave segreta Flask per sessioni (opzionale, consigliata se abiliti il login)",
@@ -207,11 +228,31 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8000, help="Porta di ascolto")
     args = parser.parse_args()
 
-    if bool(args.ui_user) ^ bool(args.ui_password):
-        parser.error("Specifica sia --ui-user che --ui-password per abilitare il login.")
+    if args.auth_mode == "cli" and (not args.ui_user or not args.ui_password):
+        parser.error("Per auth-mode=cli devi specificare --ui-user e --ui-password.")
+    if args.auth_mode == "mysql" and not args.mysql_url:
+        parser.error("Per auth-mode=mysql devi specificare --mysql-url.")
+    if args.create_user and args.auth_mode != "mysql":
+        parser.error("Per creare un utente devi usare --auth-mode mysql.")
+    if args.create_user and not args.create_password:
+        parser.error("Per creare un utente devi specificare --create-password.")
 
     storage = get_storage(args.db_type, Path(args.db), args.mysql_url)
-    auth = AuthConfig(username=args.ui_user, password=args.ui_password, secret_key=args.secret_key)
+    user_storage: UserStorageProtocol | None = None
+    if args.auth_mode == "mysql":
+        user_storage = MySQLUserStorage(args.mysql_url)
+        if args.create_user:
+            user_storage.create_user(args.create_user, args.create_password)
+            print(f"Utente '{args.create_user}' creato con successo.")
+            return
+
+    auth = AuthConfig(
+        mode=args.auth_mode,
+        username=args.ui_user,
+        password=args.ui_password,
+        secret_key=args.secret_key,
+        user_storage=user_storage,
+    )
     app = create_app(storage, auth)
     app.run(host=args.host, port=args.port, debug=True)
 

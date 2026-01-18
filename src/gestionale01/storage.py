@@ -6,6 +6,8 @@ from datetime import date
 from pathlib import Path
 from typing import Iterable, Protocol
 
+from werkzeug.security import check_password_hash, generate_password_hash
+
 from .models import Vehicle
 
 
@@ -63,6 +65,22 @@ class StorageProtocol(Protocol):
 
     def remove(self, vehicle_id: str) -> None:
         ...
+
+
+def _connect_mysql(url: str):
+    import mysql.connector
+    from urllib.parse import urlparse
+
+    parsed = urlparse(url)
+    if parsed.scheme != "mysql":
+        raise ValueError("URL MySQL non valido. Usa il formato mysql://utente:password@host:porta/database")
+    return mysql.connector.connect(
+        user=parsed.username,
+        password=parsed.password,
+        host=parsed.hostname or "127.0.0.1",
+        port=parsed.port or 3306,
+        database=(parsed.path or "").lstrip("/"),
+    )
 
 
 class MySQLVehicleStorage:
@@ -162,19 +180,7 @@ class MySQLVehicleStorage:
             conn.commit()
 
     def _connect(self):
-        import mysql.connector
-        from urllib.parse import urlparse
-
-        parsed = urlparse(self.url)
-        if parsed.scheme != "mysql":
-            raise ValueError("URL MySQL non valido. Usa il formato mysql://utente:password@host:porta/database")
-        return mysql.connector.connect(
-            user=parsed.username,
-            password=parsed.password,
-            host=parsed.hostname or "127.0.0.1",
-            port=parsed.port or 3306,
-            database=(parsed.path or "").lstrip("/"),
-        )
+        return _connect_mysql(self.url)
 
     def _ensure_table(self, conn) -> None:
         cursor = conn.cursor()
@@ -204,3 +210,59 @@ def get_storage(db_type: str, db_path: Path, mysql_url: str | None) -> StoragePr
             raise ValueError("Per db_type=mysql devi passare --mysql-url.")
         return MySQLVehicleStorage(mysql_url)
     raise ValueError("Tipo database non supportato. Usa json o mysql.")
+
+
+class UserStorageProtocol(Protocol):
+    def verify_user(self, username: str, password: str) -> bool:
+        ...
+
+    def create_user(self, username: str, password: str) -> None:
+        ...
+
+
+class MySQLUserStorage:
+    def __init__(self, url: str) -> None:
+        self.url = url
+
+    def verify_user(self, username: str, password: str) -> bool:
+        with self._connect() as conn:
+            self._ensure_table(conn)
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("SELECT password_hash FROM users WHERE username = %s", (username,))
+            row = cursor.fetchone()
+        if row is None:
+            return False
+        return check_password_hash(row["password_hash"], password)
+
+    def create_user(self, username: str, password: str) -> None:
+        with self._connect() as conn:
+            self._ensure_table(conn)
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM users WHERE username = %s", (username,))
+            if cursor.fetchone()[0] > 0:
+                raise ValueError(f"Esiste già un utente con username {username}.")
+            password_hash = generate_password_hash(password)
+            cursor.execute(
+                """
+                INSERT INTO users (username, password_hash, creato_il)
+                VALUES (%s, %s, %s)
+                """,
+                (username, password_hash, date.today().isoformat()),
+            )
+            conn.commit()
+
+    def _connect(self):
+        return _connect_mysql(self.url)
+
+    def _ensure_table(self, conn) -> None:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                username VARCHAR(80) PRIMARY KEY,
+                password_hash VARCHAR(255) NOT NULL,
+                creato_il DATE NOT NULL
+            )
+            """
+        )
+        conn.commit()

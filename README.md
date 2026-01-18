@@ -33,15 +33,31 @@ Poi apri il browser su `http://127.0.0.1:8000`.
 
 ### Login utenti (opzionale)
 
-Puoi abilitare un login semplice per la UI passando username e password.
+Puoi abilitare un login semplice per la UI scegliendo la modalità di autenticazione.
+
+#### Login da database MySQL (tabella `users`)
+
+1. Crea un utente nella tabella `users`:
 
 ```bash
-python -m gestionale01.web --ui-user admin --ui-password "supersegreta" --secret-key "chiave-sicura"
+python -m gestionale01.web --db-type mysql --mysql-url "mysql://user:pass@127.0.0.1:3306/gestionale" --auth-mode mysql --create-user admin --create-password "supersegreta"
+```
+
+2. Avvia la UI con login su MySQL:
+
+```bash
+python -m gestionale01.web --db-type mysql --mysql-url "mysql://user:pass@127.0.0.1:3306/gestionale" --auth-mode mysql --secret-key "chiave-sicura"
+```
+
+#### Login da CLI (solo per test locali)
+
+```bash
+python -m gestionale01.web --auth-mode cli --ui-user admin --ui-password "supersegreta" --secret-key "chiave-sicura"
 ```
 
 Note:
 - Se abiliti il login, è consigliato impostare `--secret-key` (o la variabile `GESTIONALE01_SECRET_KEY`) per le sessioni.
-- Senza `--ui-user/--ui-password` la UI resta accessibile senza autenticazione.
+- Con `auth-mode=none` la UI resta accessibile senza autenticazione.
 
 ## Uso con database MySQL
 
