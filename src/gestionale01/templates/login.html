@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% set shell_hidden = true %}
+
+{% block content %}
+  <div class="page-header">
+    <div>
+      <h1>Accesso</h1>
+      <p class="muted">Inserisci le credenziali per gestire il parco auto.</p>
+    </div>
+  </div>
+
+  <section class="card">
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post">
+      <input type="hidden" name="next" value="{{ next_url }}" />
+      <div>
+        <label for="username">Username</label>
+        <input id="username" name="username" autocomplete="username" required />
+      </div>
+      <div>
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required />
+      </div>
+      <div class="form-actions">
+        <button class="button" type="submit">Accedi</button>
+      </div>
+    </form>
+  </section>
+{% endblock %}

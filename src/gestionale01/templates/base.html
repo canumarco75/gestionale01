@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gestionale Parco Auto</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Segoe UI", sans-serif;
+        background-color: #f5f6fa;
+        color: #1f2a44;
+      }
+      body {
+        margin: 0;
+        background: #f5f6fa;
+        color: #1f2a44;
+      }
+      body.dark-mode {
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+      .app {
+        display: flex;
+        min-height: 100vh;
+      }
+      .sidebar {
+        width: 240px;
+        background: #0f172a;
+        color: #f8fafc;
+        padding: 24px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        transition: width 0.2s ease;
+      }
+      .sidebar.collapsed {
+        width: 72px;
+      }
+      .sidebar .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 700;
+        font-size: 18px;
+      }
+      .sidebar .nav {
+        display: grid;
+        gap: 12px;
+      }
+      .sidebar a {
+        color: inherit;
+        text-decoration: none;
+        padding: 10px 12px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .sidebar a.active,
+      .sidebar a:hover {
+        background: rgba(148, 163, 184, 0.2);
+      }
+      .main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 24px;
+        background: #ffffff;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      body.dark-mode .topbar {
+        background: #111827;
+        border-bottom-color: #1f2937;
+      }
+      .topbar-left {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+      .toggle-button {
+        border: none;
+        background: #e2e8f0;
+        border-radius: 8px;
+        padding: 8px 10px;
+        cursor: pointer;
+      }
+      body.dark-mode .toggle-button {
+        background: #1f2937;
+        color: #e2e8f0;
+      }
+      .topbar-right {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 999px;
+        background: #2563eb;
+        color: #fff;
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+      }
+      .user-menu {
+        position: relative;
+      }
+      .user-menu summary {
+        list-style: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .user-menu summary::-webkit-details-marker {
+        display: none;
+      }
+      .menu-panel {
+        position: absolute;
+        right: 0;
+        margin-top: 8px;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        min-width: 180px;
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.15);
+        padding: 8px;
+        z-index: 10;
+      }
+      body.dark-mode .menu-panel {
+        background: #111827;
+        border-color: #1f2937;
+      }
+      .content {
+        padding: 24px;
+      }
+      .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+      }
+      .header-actions {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      h1 {
+        font-size: 24px;
+        margin: 0;
+      }
+      .button {
+        display: inline-block;
+        padding: 10px 16px;
+        border-radius: 8px;
+        text-decoration: none;
+        background-color: #2563eb;
+        color: #fff;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+      }
+      .button.secondary {
+        background-color: #e2e8f0;
+        color: #1f2a44;
+      }
+      body.dark-mode .button.secondary {
+        background-color: #1f2937;
+        color: #e2e8f0;
+      }
+      .card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+      }
+      body.dark-mode .card {
+        background: #0b1220;
+        box-shadow: 0 8px 24px rgba(2, 6, 23, 0.6);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 12px 10px;
+        border-bottom: 1px solid #e2e8f0;
+      }
+      body.dark-mode th,
+      body.dark-mode td {
+        border-bottom-color: #1f2937;
+      }
+      th {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #64748b;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+      }
+      .badge {
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        background: #e2e8f0;
+      }
+      body.dark-mode .badge {
+        background: #1f2937;
+        color: #e2e8f0;
+      }
+      .error {
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: #fee2e2;
+        color: #991b1b;
+        margin-bottom: 16px;
+      }
+      body.dark-mode .error {
+        background: #3f1d1d;
+        color: #fecaca;
+      }
+      form {
+        display: grid;
+        gap: 12px;
+      }
+      label {
+        font-weight: 600;
+        display: block;
+        margin-bottom: 4px;
+      }
+      input,
+      textarea,
+      select {
+        width: 100%;
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid #cbd5f5;
+        font-size: 14px;
+      }
+      body.dark-mode input,
+      body.dark-mode textarea,
+      body.dark-mode select {
+        background: #0f172a;
+        border-color: #1f2937;
+        color: #e2e8f0;
+      }
+      textarea {
+        resize: vertical;
+      }
+      .form-actions {
+        display: flex;
+        gap: 12px;
+      }
+      .muted {
+        color: #64748b;
+        font-size: 14px;
+      }
+      body.dark-mode .muted {
+        color: #94a3b8;
+      }
+      .shell-hidden .sidebar,
+      .shell-hidden .topbar {
+        display: none;
+      }
+      .shell-hidden .content {
+        padding: 32px;
+      }
+    </style>
+  </head>
+  <body class="{% if shell_hidden %}shell-hidden{% endif %}">
+    <div class="app">
+      {% if not shell_hidden %}
+        <aside class="sidebar" id="sidebar">
+          <div class="brand">
+            <span>🚗</span>
+            <span class="brand-name">Gestionale</span>
+          </div>
+          <nav class="nav">
+            <a class="active" href="{{ url_for('index') }}">📋 Veicoli</a>
+            <a href="{{ url_for('add_form') }}">➕ Nuovo veicolo</a>
+            {% if auth_enabled %}
+              <a href="{{ url_for('login') }}">🔐 Login</a>
+            {% endif %}
+          </nav>
+        </aside>
+      {% endif %}
+      <div class="main">
+        {% if not shell_hidden %}
+          <div class="topbar">
+            <div class="topbar-left">
+              <button class="toggle-button" type="button" id="sidebar-toggle">☰</button>
+              <div>
+                <strong>Parco Auto</strong>
+                <div class="muted">Dashboard operativa</div>
+              </div>
+            </div>
+            <div class="topbar-right">
+              <button class="toggle-button" type="button" id="theme-toggle">🌓</button>
+              <div class="user-menu">
+                <details>
+                  <summary>
+                    <span class="avatar">U</span>
+                    <span>{{ auth_enabled and is_authenticated and "Connesso" or "Ospite" }}</span>
+                  </summary>
+                  <div class="menu-panel">
+                    <p class="muted">Gestione account</p>
+                    {% if auth_enabled and is_authenticated %}
+                      <form method="post" action="{{ url_for('logout') }}">
+                        <button class="button secondary" type="submit">Logout</button>
+                      </form>
+                    {% elif auth_enabled %}
+                      <a class="button secondary" href="{{ url_for('login') }}">Vai al login</a>
+                    {% else %}
+                      <span class="muted">Login disabilitato</span>
+                    {% endif %}
+                  </div>
+                </details>
+              </div>
+            </div>
+          </div>
+        {% endif %}
+        <main class="content">
+          {% block content %}{% endblock %}
+        </main>
+      </div>
+    </div>
+    <script>
+      const themeToggle = document.getElementById("theme-toggle");
+      const sidebarToggle = document.getElementById("sidebar-toggle");
+      const sidebar = document.getElementById("sidebar");
+
+      const savedTheme = localStorage.getItem("gestionale_theme");
+      if (savedTheme === "dark") {
+        document.body.classList.add("dark-mode");
+      }
+
+      if (themeToggle) {
+        themeToggle.addEventListener("click", () => {
+          document.body.classList.toggle("dark-mode");
+          const mode = document.body.classList.contains("dark-mode") ? "dark" : "light";
+          localStorage.setItem("gestionale_theme", mode);
+        });
+      }
+
+      if (sidebarToggle && sidebar) {
+        sidebarToggle.addEventListener("click", () => {
+          sidebar.classList.toggle("collapsed");
+        });
+      }
+    </script>
+  </body>
+</html>
