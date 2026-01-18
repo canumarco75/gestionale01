@@ -12,18 +12,46 @@
   </div>
 
   <section class="card">
+    <div class="table-toolbar">
+      <div class="table-filters">
+        <input
+          id="table-search"
+          type="search"
+          placeholder="Cerca in tabella..."
+          aria-label="Cerca in tabella"
+        />
+        <label class="muted">
+          Righe per pagina
+          <select id="page-size">
+            <option value="5">5</option>
+            <option value="10" selected>10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+          </select>
+        </label>
+      </div>
+      <div class="table-actions">
+        <details class="column-toggle">
+          <summary class="button secondary">Colonne</summary>
+          <div class="menu-panel column-menu" id="column-menu"></div>
+        </details>
+        <button class="button secondary" type="button" id="export-csv">Esporta CSV</button>
+        <button class="button secondary" type="button" id="export-excel">Esporta Excel</button>
+        <button class="button secondary" type="button" id="export-pdf">Esporta PDF</button>
+      </div>
+    </div>
     {% if vehicles %}
-      <table>
+      <table id="vehicles-table">
         <thead>
           <tr>
-            <th>ID</th>
-            <th>Targa</th>
-            <th>Modello</th>
-            <th>Anno</th>
-            <th>KM</th>
-            <th>Stato</th>
-            <th>Aggiornato il</th>
-            <th>Azioni</th>
+            <th data-type="text">ID</th>
+            <th data-type="text">Targa</th>
+            <th data-type="text">Modello</th>
+            <th data-type="number">Anno</th>
+            <th data-type="number">KM</th>
+            <th data-type="text">Stato</th>
+            <th data-type="date">Aggiornato il</th>
+            <th data-type="text">Azioni</th>
           </tr>
         </thead>
         <tbody>
@@ -48,8 +76,219 @@
           {% endfor %}
         </tbody>
       </table>
+      <div class="table-footer">
+        <span id="table-count" class="muted"></span>
+        <div class="pagination">
+          <button class="button secondary" type="button" id="prev-page">Precedente</button>
+          <span id="page-indicator" class="muted"></span>
+          <button class="button secondary" type="button" id="next-page">Successiva</button>
+        </div>
+      </div>
     {% else %}
       <p class="muted">Nessun veicolo presente. Usa "Nuovo veicolo" per iniziare.</p>
     {% endif %}
   </section>
+  <script>
+    const table = document.getElementById("vehicles-table");
+    if (table) {
+      const tbody = table.querySelector("tbody");
+      const headers = Array.from(table.querySelectorAll("thead th"));
+      const searchInput = document.getElementById("table-search");
+      const pageSizeSelect = document.getElementById("page-size");
+      const countLabel = document.getElementById("table-count");
+      const pageIndicator = document.getElementById("page-indicator");
+      const prevPageBtn = document.getElementById("prev-page");
+      const nextPageBtn = document.getElementById("next-page");
+      const columnMenu = document.getElementById("column-menu");
+      const exportCsvBtn = document.getElementById("export-csv");
+      const exportExcelBtn = document.getElementById("export-excel");
+      const exportPdfBtn = document.getElementById("export-pdf");
+      const originalRows = Array.from(tbody.querySelectorAll("tr"));
+      let currentPage = 1;
+      let currentSort = { index: 0, direction: "asc" };
+
+      const getCellValue = (row, index) => {
+        const cell = row.children[index];
+        return cell ? cell.innerText.trim() : "";
+      };
+
+      const normalizeValue = (value, type) => {
+        if (type === "number") {
+          return Number(value.replace(/\./g, "").replace(",", ".")) || 0;
+        }
+        if (type === "date") {
+          return new Date(value).getTime() || 0;
+        }
+        return value.toLowerCase();
+      };
+
+      const applyFilters = () => {
+        const query = (searchInput.value || "").toLowerCase();
+        return originalRows.filter((row) => {
+          if (!query) return true;
+          return Array.from(row.children).some((cell) => cell.innerText.toLowerCase().includes(query));
+        });
+      };
+
+      const applySort = (rows) => {
+        if (!currentSort) return rows;
+        const type = headers[currentSort.index]?.dataset.type || "text";
+        return rows.sort((a, b) => {
+          const aValue = normalizeValue(getCellValue(a, currentSort.index), type);
+          const bValue = normalizeValue(getCellValue(b, currentSort.index), type);
+          if (aValue < bValue) return currentSort.direction === "asc" ? -1 : 1;
+          if (aValue > bValue) return currentSort.direction === "asc" ? 1 : -1;
+          return 0;
+        });
+      };
+
+      const applyPagination = (rows) => {
+        const pageSize = Number(pageSizeSelect.value);
+        const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+        currentPage = Math.min(currentPage, totalPages);
+        const start = (currentPage - 1) * pageSize;
+        const end = start + pageSize;
+        return { rows: rows.slice(start, end), totalPages };
+      };
+
+      const renderTable = () => {
+        const filtered = applyFilters();
+        const sorted = applySort(filtered);
+        const { rows, totalPages } = applyPagination(sorted);
+        tbody.innerHTML = "";
+        rows.forEach((row) => tbody.appendChild(row));
+
+        countLabel.textContent = `Record: ${filtered.length} di ${originalRows.length}`;
+        pageIndicator.textContent = `Pagina ${currentPage} di ${totalPages}`;
+        prevPageBtn.disabled = currentPage <= 1;
+        nextPageBtn.disabled = currentPage >= totalPages;
+      };
+
+      headers.forEach((header, index) => {
+        header.style.cursor = "pointer";
+        header.addEventListener("click", () => {
+          if (currentSort.index === index) {
+            currentSort.direction = currentSort.direction === "asc" ? "desc" : "asc";
+          } else {
+            currentSort = { index, direction: "asc" };
+          }
+          renderTable();
+        });
+      });
+
+      searchInput.addEventListener("input", () => {
+        currentPage = 1;
+        renderTable();
+      });
+      pageSizeSelect.addEventListener("change", () => {
+        currentPage = 1;
+        renderTable();
+      });
+      prevPageBtn.addEventListener("click", () => {
+        currentPage = Math.max(1, currentPage - 1);
+        renderTable();
+      });
+      nextPageBtn.addEventListener("click", () => {
+        currentPage += 1;
+        renderTable();
+      });
+
+      const visibleColumns = new Set(headers.map((_, index) => index));
+      const updateColumnVisibility = () => {
+        headers.forEach((header, index) => {
+          const isVisible = visibleColumns.has(index);
+          header.style.display = isVisible ? "" : "none";
+          Array.from(tbody.querySelectorAll("tr")).forEach((row) => {
+            const cell = row.children[index];
+            if (cell) cell.style.display = isVisible ? "" : "none";
+          });
+        });
+      };
+
+      headers.forEach((header, index) => {
+        const label = document.createElement("label");
+        label.className = "column-option";
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = true;
+        checkbox.addEventListener("change", () => {
+          if (checkbox.checked) {
+            visibleColumns.add(index);
+          } else {
+            visibleColumns.delete(index);
+          }
+          updateColumnVisibility();
+        });
+        const text = document.createElement("span");
+        text.textContent = header.textContent;
+        label.appendChild(checkbox);
+        label.appendChild(text);
+        columnMenu.appendChild(label);
+      });
+
+      const exportTable = (format) => {
+        const rows = Array.from(table.querySelectorAll("tr"));
+        const visibleIndexes = headers
+          .map((header, index) => (header.style.display === "none" ? null : index))
+          .filter((index) => index !== null);
+
+        const data = rows
+          .map((row) =>
+            visibleIndexes
+              .map((index) => row.children[index]?.innerText.replace(/\n/g, " ").trim() || "")
+              .join(",")
+          )
+          .join("\n");
+
+        if (format === "csv") {
+          const blob = new Blob([data], { type: "text/csv;charset=utf-8;" });
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(blob);
+          link.download = "veicoli.csv";
+          link.click();
+        } else if (format === "excel") {
+          const tableHtml =
+            "<table>" +
+            rows
+              .map((row) => {
+                const cells = visibleIndexes
+                  .map((index) => `<td>${row.children[index]?.innerText || ""}</td>`)
+                  .join("");
+                return `<tr>${cells}</tr>`;
+              })
+              .join("") +
+            "</table>";
+          const blob = new Blob([tableHtml], { type: "application/vnd.ms-excel" });
+          const link = document.createElement("a");
+          link.href = URL.createObjectURL(blob);
+          link.download = "veicoli.xls";
+          link.click();
+        } else if (format === "pdf") {
+          const printWindow = window.open("", "_blank");
+          if (!printWindow) return;
+          const tableHtml =
+            "<table border='1' style='width:100%;border-collapse:collapse;'>" +
+            rows
+              .map((row) => {
+                const cells = visibleIndexes
+                  .map((index) => `<td>${row.children[index]?.innerText || ""}</td>`)
+                  .join("");
+                return `<tr>${cells}</tr>`;
+              })
+              .join("") +
+            "</table>";
+          printWindow.document.write(`<html><head><title>Esporta PDF</title></head><body>${tableHtml}</body></html>`);
+          printWindow.document.close();
+          printWindow.print();
+        }
+      };
+
+      exportCsvBtn.addEventListener("click", () => exportTable("csv"));
+      exportExcelBtn.addEventListener("click", () => exportTable("excel"));
+      exportPdfBtn.addEventListener("click", () => exportTable("pdf"));
+
+      updateColumnVisibility();
+      renderTable();
+    }
+  </script>
 {% endblock %}
