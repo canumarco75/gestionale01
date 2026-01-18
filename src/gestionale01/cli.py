@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 
 from .models import Vehicle
-from .storage import VehicleStorage
+from .storage import StorageProtocol, get_storage
 
 DEFAULT_DB = Path("data/vehicles.json")
 
@@ -12,6 +12,13 @@ DEFAULT_DB = Path("data/vehicles.json")
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Gestione parco automezzi")
     parser.add_argument("--db", type=Path, default=DEFAULT_DB, help="Percorso del file dati JSON")
+    parser.add_argument(
+        "--db-type",
+        choices=["json", "mysql"],
+        default="json",
+        help="Tipo di database da usare (json o mysql)",
+    )
+    parser.add_argument("--mysql-url", help="URL di connessione MySQL (es. mysql://user:pass@host:3306/db)")
 
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -42,7 +49,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def handle_add(args: argparse.Namespace, storage: VehicleStorage) -> None:
+def handle_add(args: argparse.Namespace, storage: StorageProtocol) -> None:
     vehicle = Vehicle(
         vehicle_id=args.vehicle_id,
         targa=args.targa,
@@ -56,7 +63,7 @@ def handle_add(args: argparse.Namespace, storage: VehicleStorage) -> None:
     print(f"Veicolo {args.vehicle_id} aggiunto con successo.")
 
 
-def handle_list(args: argparse.Namespace, storage: VehicleStorage) -> None:
+def handle_list(args: argparse.Namespace, storage: StorageProtocol) -> None:
     vehicles = storage.load()
     if args.stato:
         vehicles = [vehicle for vehicle in vehicles if vehicle.stato == args.stato]
@@ -81,7 +88,7 @@ def handle_list(args: argparse.Namespace, storage: VehicleStorage) -> None:
         )
 
 
-def handle_update(args: argparse.Namespace, storage: VehicleStorage) -> None:
+def handle_update(args: argparse.Namespace, storage: StorageProtocol) -> None:
     changes = {
         key: value
         for key, value in {
@@ -100,7 +107,7 @@ def handle_update(args: argparse.Namespace, storage: VehicleStorage) -> None:
     print(f"Veicolo {args.vehicle_id} aggiornato.")
 
 
-def handle_remove(args: argparse.Namespace, storage: VehicleStorage) -> None:
+def handle_remove(args: argparse.Namespace, storage: StorageProtocol) -> None:
     storage.remove(args.vehicle_id)
     print(f"Veicolo {args.vehicle_id} rimosso.")
 
@@ -108,7 +115,7 @@ def handle_remove(args: argparse.Namespace, storage: VehicleStorage) -> None:
 def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
-    storage = VehicleStorage(args.db)
+    storage = get_storage(args.db_type, args.db, args.mysql_url)
 
     if args.command == "add":
         handle_add(args, storage)

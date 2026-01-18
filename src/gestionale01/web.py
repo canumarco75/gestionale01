@@ -9,12 +9,11 @@ from dataclasses import dataclass
 from flask import Flask, redirect, render_template, request, url_for
 
 from .models import Vehicle
-from .storage import VehicleStorage
+from .storage import StorageProtocol, get_storage
 
 
-def create_app(db_path: Path) -> Flask:
+def create_app(storage: StorageProtocol) -> Flask:
     app = Flask(__name__)
-    storage = VehicleStorage(db_path)
 
     @app.get("/")
     def index() -> str:
@@ -74,7 +73,7 @@ def create_app(db_path: Path) -> Flask:
     return app
 
 
-def _find_vehicle(storage: VehicleStorage, vehicle_id: str) -> Vehicle | None:
+def _find_vehicle(storage: StorageProtocol, vehicle_id: str) -> Vehicle | None:
     for vehicle in storage.load():
         if vehicle.vehicle_id == vehicle_id:
             return vehicle
@@ -122,11 +121,19 @@ def _vehicle_from_form(
 def main() -> None:
     parser = argparse.ArgumentParser(description="UI web per il gestionale parco auto")
     parser.add_argument("--db", default="data/vehicles.json", help="Percorso database JSON")
+    parser.add_argument(
+        "--db-type",
+        choices=["json", "mysql"],
+        default="json",
+        help="Tipo di database da usare (json o mysql)",
+    )
+    parser.add_argument("--mysql-url", help="URL di connessione MySQL (es. mysql://user:pass@host:3306/db)")
     parser.add_argument("--host", default="127.0.0.1", help="Host di ascolto")
     parser.add_argument("--port", type=int, default=8000, help="Porta di ascolto")
     args = parser.parse_args()
 
-    app = create_app(Path(args.db))
+    storage = get_storage(args.db_type, Path(args.db), args.mysql_url)
+    app = create_app(storage)
     app.run(host=args.host, port=args.port, debug=True)
 
 

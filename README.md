@@ -5,7 +5,7 @@ Progetto di gestione di un parco automezzi tramite una semplice CLI in Python.
 ## Requisiti
 
 - Python 3.11+
-- Dipendenza: Flask (installata con `pip install -e .`).
+- Dipendenze: Flask, mysql-connector-python (installate con `pip install -e .`).
 
 ## Installazione locale
 
@@ -30,6 +30,28 @@ python -m gestionale01.web
 ```
 
 Poi apri il browser su `http://127.0.0.1:8000`.
+
+## Uso con database MySQL
+
+Puoi usare MySQL al posto del file JSON passando `--db-type mysql` e l'URL di connessione.
+
+### Formato URL
+
+```
+mysql://utente:password@host:3306/nome_database
+```
+
+### Esempio CLI
+
+```bash
+python -m gestionale01 --db-type mysql --mysql-url "mysql://user:pass@127.0.0.1:3306/gestionale" list
+```
+
+### Esempio UI Web
+
+```bash
+python -m gestionale01.web --db-type mysql --mysql-url "mysql://user:pass@127.0.0.1:3306/gestionale"
+```
 
 ## Comandi disponibili
 
