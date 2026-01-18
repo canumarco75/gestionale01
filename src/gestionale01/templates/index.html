@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <header>
+    <div>
+      <h1>Gestionale parco auto</h1>
+      <p class="muted">Gestisci i veicoli con operazioni CRUD.</p>
+    </div>
+    <div class="header-actions">
+      {% if auth_enabled %}
+        <form method="post" action="{{ url_for('logout') }}">
+          <button class="button secondary" type="submit">Logout</button>
+        </form>
+      {% endif %}
+      <a class="button" href="{{ url_for('add_form') }}">Nuovo veicolo</a>
+    </div>
+  </header>
+
+  <section class="card">
+    {% if vehicles %}
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Targa</th>
+            <th>Modello</th>
+            <th>Anno</th>
+            <th>KM</th>
+            <th>Stato</th>
+            <th>Aggiornato il</th>
+            <th>Azioni</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for vehicle in vehicles %}
+            <tr>
+              <td>{{ vehicle.vehicle_id }}</td>
+              <td>{{ vehicle.targa }}</td>
+              <td>{{ vehicle.modello }}</td>
+              <td>{{ vehicle.anno }}</td>
+              <td>{{ vehicle.chilometraggio }}</td>
+              <td><span class="badge">{{ vehicle.stato }}</span></td>
+              <td>{{ vehicle.aggiornato_il }}</td>
+              <td>
+                <div class="actions">
+                  <a class="button secondary" href="{{ url_for('edit_form', vehicle_id=vehicle.vehicle_id) }}">Modifica</a>
+                  <form action="{{ url_for('delete_vehicle', vehicle_id=vehicle.vehicle_id) }}" method="post">
+                    <button class="button secondary" type="submit">Elimina</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="muted">Nessun veicolo presente. Usa "Nuovo veicolo" per iniziare.</p>
+    {% endif %}
+  </section>
+{% endblock %}

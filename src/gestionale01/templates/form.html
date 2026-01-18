@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <header>
+    <div>
+      <h1>{{ "Modifica veicolo" if vehicle else "Nuovo veicolo" }}</h1>
+      <p class="muted">Compila i dati per salvare il veicolo.</p>
+    </div>
+    <div class="header-actions">
+      {% if auth_enabled %}
+        <form method="post" action="{{ url_for('logout') }}">
+          <button class="button secondary" type="submit">Logout</button>
+        </form>
+      {% endif %}
+      <a class="button secondary" href="{{ url_for('index') }}">Torna alla lista</a>
+    </div>
+  </header>
+
+  <section class="card">
+    {% if error %}
+      <div class="error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post">
+      <div>
+        <label for="vehicle_id">ID veicolo *</label>
+        <input
+          id="vehicle_id"
+          name="vehicle_id"
+          value="{{ vehicle.vehicle_id if vehicle else '' }}"
+          {% if vehicle %}readonly{% endif %}
+          required
+        />
+      </div>
+      <div>
+        <label for="targa">Targa *</label>
+        <input id="targa" name="targa" value="{{ vehicle.targa if vehicle else '' }}" required />
+      </div>
+      <div>
+        <label for="modello">Modello *</label>
+        <input id="modello" name="modello" value="{{ vehicle.modello if vehicle else '' }}" required />
+      </div>
+      <div>
+        <label for="anno">Anno *</label>
+        <input id="anno" name="anno" type="number" value="{{ vehicle.anno if vehicle else '' }}" required />
+      </div>
+      <div>
+        <label for="chilometraggio">Chilometraggio *</label>
+        <input
+          id="chilometraggio"
+          name="chilometraggio"
+          type="number"
+          value="{{ vehicle.chilometraggio if vehicle else '' }}"
+          required
+        />
+      </div>
+      <div>
+        <label for="stato">Stato</label>
+        <select id="stato" name="stato">
+          {% set stato_corrente = vehicle.stato if vehicle else "disponibile" %}
+          {% for stato in ["disponibile", "in_manutenzione", "non_disponibile"] %}
+            <option value="{{ stato }}" {% if stato == stato_corrente %}selected{% endif %}>{{ stato }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="note">Note</label>
+        <textarea id="note" name="note" rows="4">{{ vehicle.note if vehicle else '' }}</textarea>
+      </div>
+      <div class="form-actions">
+        <button class="button" type="submit">Salva</button>
+        <a class="button secondary" href="{{ url_for('index') }}">Annulla</a>
+      </div>
+    </form>
+  </section>
+{% endblock %}
