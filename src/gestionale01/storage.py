@@ -1,0 +1,206 @@
+from __future__ import annotations
+
+import json
+from dataclasses import asdict
+from datetime import date
+from pathlib import Path
+from typing import Iterable, Protocol
+
+from .models import Vehicle
+
+
+class VehicleStorage:
+    def __init__(self, path: Path) -> None:
+        self.path = path
+
+    def load(self) -> list[Vehicle]:
+        if not self.path.exists():
+            return []
+        with self.path.open("r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+        return [Vehicle.from_dict(item) for item in payload]
+
+    def save(self, vehicles: Iterable[Vehicle]) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self.path.open("w", encoding="utf-8") as handle:
+            json.dump([asdict(vehicle) for vehicle in vehicles], handle, indent=2, ensure_ascii=False)
+
+    def add(self, vehicle: Vehicle) -> None:
+        vehicles = self.load()
+        if any(v.vehicle_id == vehicle.vehicle_id for v in vehicles):
+            raise ValueError(f"Esiste già un veicolo con ID {vehicle.vehicle_id}.")
+        vehicles.append(vehicle)
+        self.save(vehicles)
+
+    def update(self, vehicle_id: str, **changes: str | int) -> Vehicle:
+        vehicles = self.load()
+        for vehicle in vehicles:
+            if vehicle.vehicle_id == vehicle_id:
+                for key, value in changes.items():
+                    setattr(vehicle, key, value)
+                vehicle.aggiornato_il = date.today().isoformat()
+                self.save(vehicles)
+                return vehicle
+        raise ValueError(f"Nessun veicolo trovato con ID {vehicle_id}.")
+
+    def remove(self, vehicle_id: str) -> None:
+        vehicles = self.load()
+        filtered = [vehicle for vehicle in vehicles if vehicle.vehicle_id != vehicle_id]
+        if len(filtered) == len(vehicles):
+            raise ValueError(f"Nessun veicolo trovato con ID {vehicle_id}.")
+        self.save(filtered)
+
+
+class StorageProtocol(Protocol):
+    def load(self) -> list[Vehicle]:
+        ...
+
+    def add(self, vehicle: Vehicle) -> None:
+        ...
+
+    def update(self, vehicle_id: str, **changes: str | int) -> Vehicle:
+        ...
+
+    def remove(self, vehicle_id: str) -> None:
+        ...
+
+
+class MySQLVehicleStorage:
+    def __init__(self, url: str) -> None:
+        self.url = url
+
+    def load(self) -> list[Vehicle]:
+        with self._connect() as conn:
+            self._ensure_table(conn)
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute(
+                "SELECT vehicle_id, targa, modello, anno, chilometraggio, stato, note, aggiornato_il FROM vehicles"
+            )
+            rows = cursor.fetchall()
+        vehicles: list[Vehicle] = []
+        for row in rows:
+            if row["aggiornato_il"] is not None:
+                row["aggiornato_il"] = row["aggiornato_il"].isoformat()
+            vehicles.append(Vehicle.from_dict(row))
+        return vehicles
+
+    def add(self, vehicle: Vehicle) -> None:
+        with self._connect() as conn:
+            self._ensure_table(conn)
+            cursor = conn.cursor()
+            cursor.execute("SELECT COUNT(*) FROM vehicles WHERE vehicle_id = %s", (vehicle.vehicle_id,))
+            if cursor.fetchone()[0] > 0:
+                raise ValueError(f"Esiste già un veicolo con ID {vehicle.vehicle_id}.")
+            cursor.execute(
+                """
+                INSERT INTO vehicles
+                (vehicle_id, targa, modello, anno, chilometraggio, stato, note, aggiornato_il)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    vehicle.vehicle_id,
+                    vehicle.targa,
+                    vehicle.modello,
+                    vehicle.anno,
+                    vehicle.chilometraggio,
+                    vehicle.stato,
+                    vehicle.note,
+                    vehicle.aggiornato_il,
+                ),
+            )
+            conn.commit()
+
+    def update(self, vehicle_id: str, **changes: str | int) -> Vehicle:
+        with self._connect() as conn:
+            self._ensure_table(conn)
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute(
+                "SELECT vehicle_id, targa, modello, anno, chilometraggio, stato, note, aggiornato_il "
+                "FROM vehicles WHERE vehicle_id = %s",
+                (vehicle_id,),
+            )
+            row = cursor.fetchone()
+            if row is None:
+                raise ValueError(f"Nessun veicolo trovato con ID {vehicle_id}.")
+            for key, value in changes.items():
+                row[key] = value
+            row["aggiornato_il"] = date.today().isoformat()
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                UPDATE vehicles
+                SET targa = %s,
+                    modello = %s,
+                    anno = %s,
+                    chilometraggio = %s,
+                    stato = %s,
+                    note = %s,
+                    aggiornato_il = %s
+                WHERE vehicle_id = %s
+                """,
+                (
+                    row["targa"],
+                    row["modello"],
+                    row["anno"],
+                    row["chilometraggio"],
+                    row["stato"],
+                    row["note"],
+                    row["aggiornato_il"],
+                    vehicle_id,
+                ),
+            )
+            conn.commit()
+            return Vehicle.from_dict(row)
+
+    def remove(self, vehicle_id: str) -> None:
+        with self._connect() as conn:
+            self._ensure_table(conn)
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM vehicles WHERE vehicle_id = %s", (vehicle_id,))
+            if cursor.rowcount == 0:
+                raise ValueError(f"Nessun veicolo trovato con ID {vehicle_id}.")
+            conn.commit()
+
+    def _connect(self):
+        import mysql.connector
+        from urllib.parse import urlparse
+
+        parsed = urlparse(self.url)
+        if parsed.scheme != "mysql":
+            raise ValueError("URL MySQL non valido. Usa il formato mysql://utente:password@host:porta/database")
+        return mysql.connector.connect(
+            user=parsed.username,
+            password=parsed.password,
+            host=parsed.hostname or "127.0.0.1",
+            port=parsed.port or 3306,
+            database=(parsed.path or "").lstrip("/"),
+        )
+
+    def _ensure_table(self, conn) -> None:
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS vehicles (
+                vehicle_id VARCHAR(50) PRIMARY KEY,
+                targa VARCHAR(20) NOT NULL,
+                modello VARCHAR(120) NOT NULL,
+                anno INT NOT NULL,
+                chilometraggio INT NOT NULL,
+                stato VARCHAR(40) NOT NULL,
+                note TEXT NOT NULL,
+                aggiornato_il DATE NOT NULL
+            )
+            """
+        )
+        conn.commit()
+
+
+def get_storage(db_type: str, db_path: Path, mysql_url: str | None) -> StorageProtocol:
+    normalized = db_type.lower()
+    if normalized == "json":
+        return VehicleStorage(db_path)
+    if normalized == "mysql":
+        if not mysql_url:
+            raise ValueError("Per db_type=mysql devi passare --mysql-url.")
+        return MySQLVehicleStorage(mysql_url)
+    raise ValueError("Tipo database non supportato. Usa json o mysql.")
